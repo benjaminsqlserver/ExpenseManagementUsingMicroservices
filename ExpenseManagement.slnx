@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="BuildingBlocks/ExpenseManagement.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/BlazorServerClient/">
+    <Project Path="BlazorServerClient/ExpenseManagement.BlazorUI.csproj" />
+  </Folder>
+  <Folder Name="/src/services/" />
+  <Folder Name="/src/services/ApiGateway/">
+    <Project Path="ExpenseManagement.Expense.ApiGateway/ExpenseManagement.Expense.ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Expense/">
+    <Project Path="ExpenseManagement.Expense.API/ExpenseManagement.Expense.API.csproj" />
+    <Project Path="ExpenseManagement.Expense.Application/ExpenseManagement.Expense.Application.csproj" />
+    <Project Path="ExpenseManagement.Expense.Domain/ExpenseManagement.Expense.Domain.csproj" />
+    <Project Path="ExpenseManagement.Expense.Infrastructure/ExpenseManagement.Expense.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Identity/">
+    <Project Path="ExpenseManagement.Identity.API/ExpenseManagement.Identity.API.csproj" />
+    <Project Path="ExpenseManagement.Identity.Application/ExpenseManagement.Identity.Application.csproj" />
+    <Project Path="ExpenseManagement.Identity.Infrastructure/ExpenseManagement.Identity.Infrastructure.csproj" />
+    <Project Path="ExpenseMaqnagement.Identity.Domain/ExpenseMaqnagement.Identity.Domain.csproj" />
+  </Folder>
+</Solution>

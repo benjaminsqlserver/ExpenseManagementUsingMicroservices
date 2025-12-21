@@ -1,0 +1,268 @@
+﻿@page "/expenses"
+@using ExpenseManagement.BlazorUI.Services
+@using ExpenseManagement.BlazorUI.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IExpenseService ExpenseService
+@inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<PageTitle>My Expenses</PageTitle>
+
+<RadzenStack Gap="1rem">
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenText TextStyle="TextStyle.H3">My Expenses</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" class="rz-text-align-end">
+            <RadzenButton Text="Create New Expense" 
+                          Icon="add_circle" 
+                          ButtonStyle="ButtonStyle.Success" 
+                          Click="@(() => NavigationManager.NavigateTo("/expenses/create"))" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Wrap="FlexWrap.Wrap">
+            <RadzenFormField Text="Status Filter" Variant="Variant.Outlined" Style="width: 200px;">
+                <RadzenDropDown @bind-Value="@selectedStatus" 
+                                Data="@statusOptions" 
+                                TextProperty="Text" 
+                                ValueProperty="Value"
+                                Change="@OnStatusFilterChanged"
+                                AllowClear="true"
+                                Placeholder="All Statuses" />
+            </RadzenFormField>
+
+            <RadzenButton Text="Refresh" 
+                          Icon="refresh" 
+                          ButtonStyle="ButtonStyle.Light" 
+                          Click="@LoadExpenses" />
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard>
+        <RadzenDataGrid @ref="grid" 
+                        Data="@expenses?.Items" 
+                        TItem="ExpenseDto" 
+                        AllowPaging="true" 
+                        PageSize="@pageSize"
+                        Count="@ExpensesCount"
+                        LoadData="@LoadDataAsync"
+                        IsLoading="@isLoading"
+                        AllowSorting="true"
+                        ColumnWidth="200px">
+            <Columns>
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="Title" Title="Title" Width="250px">
+                    <Template Context="expense">
+                        <RadzenLink Path="@($"/expenses/{expense.Id}")" Text="@expense.Title" />
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="ExpenseDate" Title="Date" Width="120px" FormatString="{0:d}" />
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="Status" Title="Status" Width="150px">
+                    <Template Context="expense">
+                        <RadzenBadge Text="@expense.Status.ToString()" 
+                                     BadgeStyle="@GetStatusBadgeStyle(expense.Status)" 
+                                     Variant="Variant.Flat" />
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="TotalAmount" Title="Amount" Width="120px">
+                    <Template Context="expense">
+                        <span style="font-weight: 600;">@expense.Currency @expense.TotalAmount.ToString("N2")</span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="DepartmentName" Title="Department" Width="150px" />
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Property="CreatedAt" Title="Created" Width="120px" FormatString="{0:d}" />
+
+                <RadzenDataGridColumn TItem="ExpenseDto" Title="Actions" Width="200px" Sortable="false">
+                    <Template Context="expense">
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                            <RadzenButton Icon="visibility" 
+                                          ButtonStyle="ButtonStyle.Info" 
+                                          Variant="Variant.Flat" 
+                                          Size="ButtonSize.Small"
+                                          Click="@(() => ViewExpense(expense.Id))" 
+                                          @onclick:stopPropagation="true" />
+
+                            @if (expense.Status == ExpenseStatus.Draft)
+                            {
+                                <RadzenButton Icon="send" 
+                                              ButtonStyle="ButtonStyle.Success" 
+                                              Variant="Variant.Flat" 
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => SubmitExpense(expense.Id))" 
+                                              @onclick:stopPropagation="true" 
+                                              title="Submit" />
+
+                                <RadzenButton Icon="edit" 
+                                              ButtonStyle="ButtonStyle.Warning" 
+                                              Variant="Variant.Flat" 
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => EditExpense(expense.Id))" 
+                                              @onclick:stopPropagation="true" />
+
+                                <RadzenButton Icon="delete" 
+                                              ButtonStyle="ButtonStyle.Danger" 
+                                              Variant="Variant.Flat" 
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => DeleteExpense(expense.Id))" 
+                                              @onclick:stopPropagation="true" />
+                            }
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<ExpenseDto>? grid;
+    private PagedResult<ExpenseDto>? expenses;
+    private bool isLoading = false;
+    private int pageSize = 10;
+    private ExpenseStatus? selectedStatus;
+    private int ExpensesCount => expenses?.TotalCount ?? 0;
+
+    private List<StatusOption> statusOptions = new()
+    {
+        new StatusOption { Text = "Draft", Value = ExpenseStatus.Draft },
+        new StatusOption { Text = "Submitted", Value = ExpenseStatus.Submitted },
+        new StatusOption { Text = "Pending Approval", Value = ExpenseStatus.PendingApproval },
+        new StatusOption { Text = "Approved", Value = ExpenseStatus.Approved },
+        new StatusOption { Text = "Rejected", Value = ExpenseStatus.Rejected },
+        new StatusOption { Text = "Reimbursed", Value = ExpenseStatus.Reimbursed }
+    };
+
+    private class StatusOption
+    {
+        public string Text { get; set; } = string.Empty;
+        public ExpenseStatus Value { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExpenses();
+    }
+
+    private async Task LoadDataAsync(LoadDataArgs args)
+    {
+        isLoading = true;
+        var pageNumber = (args.Skip ?? 0) / pageSize + 1;
+        expenses = await ExpenseService.GetExpensesAsync(pageNumber, pageSize, selectedStatus);
+        isLoading = false;
+    }
+
+    private async Task LoadExpenses()
+    {
+        isLoading = true;
+        expenses = await ExpenseService.GetExpensesAsync(1, pageSize, selectedStatus);
+        isLoading = false;
+        await grid!.Reload();
+    }
+
+    private async Task OnStatusFilterChanged()
+    {
+        await LoadExpenses();
+    }
+
+    private void ViewExpense(Guid id)
+    {
+        NavigationManager.NavigateTo($"/expenses/{id}");
+    }
+
+    private void EditExpense(Guid id)
+    {
+        NavigationManager.NavigateTo($"/expenses/edit/{id}");
+    }
+
+    private async Task SubmitExpense(Guid id)
+    {
+        var confirmed = await DialogService.Confirm("Are you sure you want to submit this expense for approval?", 
+            "Submit Expense", 
+            new ConfirmOptions { OkButtonText = "Yes, Submit", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            var result = await ExpenseService.SubmitExpenseAsync(id);
+
+            if (result.Success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "Expense submitted successfully",
+                    Duration = 4000
+                });
+
+                await LoadExpenses();
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = result.Message,
+                    Duration = 4000
+                });
+            }
+        }
+    }
+
+    private async Task DeleteExpense(Guid id)
+    {
+        var confirmed = await DialogService.Confirm("Are you sure you want to delete this expense?", 
+            "Delete Expense", 
+            new ConfirmOptions { OkButtonText = "Yes, Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            var result = await ExpenseService.DeleteExpenseAsync(id);
+
+            if (result.Success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "Expense deleted successfully",
+                    Duration = 4000
+                });
+
+                await LoadExpenses();
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = result.Message,
+                    Duration = 4000
+                });
+            }
+        }
+    }
+
+    private BadgeStyle GetStatusBadgeStyle(ExpenseStatus status)
+    {
+        return status switch
+        {
+            ExpenseStatus.Draft => BadgeStyle.Light,
+            ExpenseStatus.Submitted => BadgeStyle.Info,
+            ExpenseStatus.PendingApproval => BadgeStyle.Warning,
+            ExpenseStatus.Approved => BadgeStyle.Success,
+            ExpenseStatus.Rejected => BadgeStyle.Danger,
+            ExpenseStatus.Reimbursed => BadgeStyle.Success,
+            _ => BadgeStyle.Secondary
+        };
+    }
+}

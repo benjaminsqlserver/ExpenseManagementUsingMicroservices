@@ -1,0 +1,116 @@
+﻿@inherits LayoutComponentBase
+@using ExpenseManagement.BlazorUI.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IAuthService AuthService
+
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0" Style="height: 60px; padding: 0 1rem;">
+            <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="account_balance_wallet" Style="font-size: 28px; color: var(--rz-primary);" />
+                <RadzenText TextStyle="TextStyle.H5" Style="margin: 0; font-weight: 600;">Expense Management</RadzenText>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" Style="margin-left: auto;">
+                <AuthorizeView>
+                    <Authorized>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@context.User.Identity?.Name" />
+                        <RadzenButton Icon="logout"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Variant="Variant.Flat"
+                                      Text="Logout"
+                                      Click="@HandleLogout" />
+                    </Authorized>
+                    <NotAuthorized>
+                        <RadzenButton Icon="login"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Text="Login"
+                                      Click="@(() => NavigationManager.NavigateTo("/login"))" />
+                    </NotAuthorized>
+                </AuthorizeView>
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="@sidebarExpanded" Style="width: 250px;">
+        <AuthorizeView>
+            <Authorized>
+                <RadzenPanelMenu>
+                    <RadzenPanelMenuItem Text="Dashboard" Icon="dashboard" Path="/" />
+
+                    <RadzenPanelMenuItem Text="Expenses" Icon="receipt_long" Expanded="true">
+                        <RadzenPanelMenuItem Text="My Expenses" Icon="list" Path="/expenses" />
+                        <RadzenPanelMenuItem Text="Create New" Icon="add_circle" Path="/expenses/create" />
+                        <RadzenPanelMenuItem Text="Drafts" Icon="drafts" Path="/expenses?status=draft" />
+                    </RadzenPanelMenuItem>
+
+                    <AuthorizeView Roles="Manager,Admin,Finance">
+                        <RadzenPanelMenuItem Text="Approvals" Icon="approval" Path="/approvals">
+                            <ChildContent>
+                                <RadzenPanelMenuItem Text="Pending" Icon="pending" Path="/approvals/pending" />
+                                <RadzenPanelMenuItem Text="History" Icon="history" Path="/approvals/history" />
+                            </ChildContent>
+                        </RadzenPanelMenuItem>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="Finance,Admin">
+                        <RadzenPanelMenuItem Text="Reimbursements" Icon="payments" Path="/reimbursements" />
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="Manager,Finance,Admin">
+                        <RadzenPanelMenuItem Text="Reports" Icon="assessment" Path="/reports">
+                            <ChildContent>
+                                <RadzenPanelMenuItem Text="Summary" Icon="summarize" Path="/reports/summary" />
+                                <RadzenPanelMenuItem Text="Trends" Icon="trending_up" Path="/reports/trends" />
+                                <RadzenPanelMenuItem Text="Analytics" Icon="analytics" Path="/reports/analytics" />
+                            </ChildContent>
+                        </RadzenPanelMenuItem>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="Admin">
+                        <RadzenPanelMenuItem Text="Administration" Icon="admin_panel_settings">
+                            <ChildContent>
+                                <RadzenPanelMenuItem Text="Users" Icon="people" Path="/admin/users" />
+                                <RadzenPanelMenuItem Text="Categories" Icon="category" Path="/admin/categories" />
+                                <RadzenPanelMenuItem Text="Departments" Icon="business" Path="/admin/departments" />
+                                <RadzenPanelMenuItem Text="Settings" Icon="settings" Path="/admin/settings" />
+                            </ChildContent>
+                        </RadzenPanelMenuItem>
+                    </AuthorizeView>
+
+                    <RadzenPanelMenuItem Text="Profile" Icon="person" Path="/profile" />
+                </RadzenPanelMenu>
+            </Authorized>
+            <NotAuthorized>
+                <div class="rz-p-4 rz-text-align-center">
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">
+                        Please login to access the system
+                    </RadzenText>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </RadzenSidebar>
+
+    <RadzenBody>
+        <div class="rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+
+<RadzenNotification />
+<RadzenDialog />
+<RadzenContextMenu />
+<RadzenTooltip />
+
+@code {
+    private bool sidebarExpanded = true;
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+}

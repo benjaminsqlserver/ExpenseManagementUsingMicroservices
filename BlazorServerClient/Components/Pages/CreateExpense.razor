@@ -1,0 +1,310 @@
+﻿@page "/expenses/create"
+@using ExpenseManagement.BlazorUI.Services
+@using ExpenseManagement.BlazorUI.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IExpenseService ExpenseService
+@inject ICategoryService CategoryService
+@inject NavigationManager NavigationManager
+@inject NotificationService NotificationService
+
+<PageTitle>Create Expense</PageTitle>
+
+<RadzenStack Gap="1rem">
+    <RadzenBreadCrumb>
+        <RadzenBreadCrumbItem Path="/expenses" Text="Expenses" />
+        <RadzenBreadCrumbItem Text="Create New" />
+    </RadzenBreadCrumb>
+
+    <RadzenText TextStyle="TextStyle.H3">Create New Expense</RadzenText>
+
+    <RadzenTemplateForm Data="@expenseRequest" Submit="@((CreateExpenseRequest model) => HandleSubmit(model))">
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="8">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" class="rz-mb-4">Expense Details</RadzenText>
+                    
+                    <RadzenStack Gap="1rem">
+                        <RadzenFormField Text="Title" Variant="Variant.Outlined">
+                            <RadzenTextBox @bind-Value="@expenseRequest.Title" 
+                                           Placeholder="Enter expense title" 
+                                           Style="width: 100%;" 
+                                           Name="Title" 
+                                           MaxLength="200" />
+                            <RadzenRequiredValidator Component="Title" Text="Title is required" />
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Description" Variant="Variant.Outlined">
+                            <RadzenTextArea @bind-Value="@expenseRequest.Description" 
+                                            Placeholder="Enter expense description" 
+                                            Style="width: 100%; height: 100px;" 
+                                            Name="Description"
+                                            MaxLength="1000" />
+                        </RadzenFormField>
+
+                        <RadzenRow>
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="Expense Date" Variant="Variant.Outlined">
+                                    <RadzenDatePicker @bind-Value="@expenseRequest.ExpenseDate" 
+                                                      Style="width: 100%;" 
+                                                      Name="ExpenseDate" 
+                                                      DateFormat="d" />
+                                    <RadzenRequiredValidator Component="ExpenseDate" Text="Date is required" />
+                                </RadzenFormField>
+                            </RadzenColumn>
+
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="Department" Variant="Variant.Outlined">
+                                    <RadzenDropDown @bind-Value="@expenseRequest.DepartmentId" 
+                                                    Data="@departments" 
+                                                    TextProperty="Name" 
+                                                    ValueProperty="Id"
+                                                    Style="width: 100%;"
+                                                    AllowClear="true"
+                                                    Placeholder="Select department" />
+                                </RadzenFormField>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenCard class="rz-mt-4">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-mb-4">
+                        <RadzenText TextStyle="TextStyle.H6">Expense Items</RadzenText>
+                        <RadzenButton Text="Add Item" 
+                                      Icon="add" 
+                                      ButtonStyle="ButtonStyle.Primary" 
+                                      Size="ButtonSize.Small"
+                                      Click="@AddItem" />
+                    </RadzenStack>
+
+                    @if (!expenseRequest.Items.Any())
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
+                            No items added yet. Click "Add Item" to add expense items.
+                        </RadzenAlert>
+                    }
+                    else
+                    {
+                        <RadzenDataList Data="@expenseRequest.Items" TItem="CreateExpenseItemRequest">
+                            <Template Context="item">
+                                <RadzenCard Variant="Variant.Outlined" class="rz-mb-3">
+                                    <RadzenStack>
+                                        <RadzenRow>
+                                            <RadzenColumn Size="12" SizeMD="6">
+                                                <RadzenFormField Text="Category" Variant="Variant.Outlined">
+                                                    <RadzenDropDown @bind-Value="@item.CategoryId" 
+                                                                    Data="@categories" 
+                                                                    TextProperty="Name" 
+                                                                    ValueProperty="Id"
+                                                                    Style="width: 100%;"
+                                                                    Placeholder="Select category" />
+                                                </RadzenFormField>
+                                            </RadzenColumn>
+
+                                            <RadzenColumn Size="12" SizeMD="6">
+                                                <RadzenFormField Text="Merchant" Variant="Variant.Outlined">
+                                                    <RadzenTextBox @bind-Value="@item.Merchant" 
+                                                                   Placeholder="Enter merchant name" 
+                                                                   Style="width: 100%;" />
+                                                </RadzenFormField>
+                                            </RadzenColumn>
+                                        </RadzenRow>
+
+                                        <RadzenFormField Text="Description" Variant="Variant.Outlined">
+                                            <RadzenTextBox @bind-Value="@item.Description" 
+                                                           Placeholder="Enter item description" 
+                                                           Style="width: 100%;" />
+                                        </RadzenFormField>
+
+                                        <RadzenRow>
+                                            <RadzenColumn Size="12" SizeMD="4">
+                                                <RadzenFormField Text="Amount" Variant="Variant.Outlined">
+                                                    <RadzenNumeric @bind-Value="@item.Amount" 
+                                                                   Min="0" 
+                                                                   Step="0.01m"
+                                                                   Format="c"
+                                                                   Style="width: 100%;" />
+                                                </RadzenFormField>
+                                            </RadzenColumn>
+
+                                            <RadzenColumn Size="12" SizeMD="4">
+                                                <RadzenFormField Text="Quantity" Variant="Variant.Outlined">
+                                                    <RadzenNumeric @bind-Value="@item.Quantity" 
+                                                                   Min="1"
+                                                                   Style="width: 100%;" />
+                                                </RadzenFormField>
+                                            </RadzenColumn>
+
+                                            <RadzenColumn Size="12" SizeMD="4">
+                                                <RadzenFormField Text="Item Date" Variant="Variant.Outlined">
+                                                    <RadzenDatePicker @bind-Value="@item.ItemDate" 
+                                                                      Style="width: 100%;" 
+                                                                      DateFormat="d" />
+                                                </RadzenFormField>
+                                            </RadzenColumn>
+                                        </RadzenRow>
+
+                                        <div class="rz-text-align-end">
+                                            <RadzenButton Text="Remove" 
+                                                          Icon="delete" 
+                                                          ButtonStyle="ButtonStyle.Danger" 
+                                                          Variant="Variant.Flat"
+                                                          Size="ButtonSize.Small"
+                                                          Click="@(() => RemoveItem(item))" />
+                                        </div>
+                                    </RadzenStack>
+                                </RadzenCard>
+                            </Template>
+                        </RadzenDataList>
+                    }
+                </RadzenCard>
+            </RadzenColumn>
+
+            <RadzenColumn Size="12" SizeMD="4">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" class="rz-mb-4">Summary</RadzenText>
+                    
+                    <RadzenStack Gap="1rem">
+                        <div>
+                            <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">Total Items</RadzenText>
+                            <RadzenText TextStyle="TextStyle.H5">@expenseRequest.Items.Count</RadzenText>
+                        </div>
+
+                        <RadzenSeparator />
+
+                        <div>
+                            <RadzenText TextStyle="TextStyle.Body2" class="rz-text-secondary-color">Total Amount</RadzenText>
+                            <RadzenText TextStyle="TextStyle.H4" Style="color: var(--rz-success);">
+                                USD @CalculateTotalAmount().ToString("N2")
+                            </RadzenText>
+                        </div>
+
+                        <RadzenSeparator />
+
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenButton Text="Save as Draft" 
+                                          ButtonType="ButtonType.Submit"
+                                          ButtonStyle="ButtonStyle.Secondary" 
+                                          Style="width: 100%;"
+                                          IsBusy="@isSaving"
+                                          Click="@(() => submitAsDraft = true)" />
+
+                            <RadzenButton Text="Submit for Approval" 
+                                          ButtonType="ButtonType.Submit"
+                                          ButtonStyle="ButtonStyle.Success" 
+                                          Style="width: 100%;"
+                                          IsBusy="@isSaving"
+                                          Disabled="@(!expenseRequest.Items.Any())"
+                                          Click="@(() => submitAsDraft = false)" />
+
+                            <RadzenButton Text="Cancel" 
+                                          ButtonStyle="ButtonStyle.Light" 
+                                          Style="width: 100%;"
+                                          Click="@(() => NavigationManager.NavigateTo("/expenses"))" />
+                        </RadzenStack>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenTemplateForm>
+</RadzenStack>
+
+@code {
+    private CreateExpenseRequest expenseRequest = new();
+    private List<CategoryDto> categories = new();
+    private List<DepartmentDto> departments = new();
+    private bool isSaving = false;
+    private bool submitAsDraft = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryService.GetCategoriesAsync();
+        departments = await CategoryService.GetDepartmentsAsync();
+        expenseRequest.ExpenseDate = DateTime.Now;
+    }
+
+    private void AddItem()
+    {
+        expenseRequest.Items.Add(new CreateExpenseItemRequest 
+        { 
+            ItemDate = DateTime.Now,
+            Quantity = 1
+        });
+    }
+
+    private void RemoveItem(CreateExpenseItemRequest item)
+    {
+        expenseRequest.Items.Remove(item);
+    }
+
+    private decimal CalculateTotalAmount()
+    {
+        return expenseRequest.Items.Sum(i => i.Amount);
+    }
+
+    private async Task HandleSubmit(CreateExpenseRequest model)
+    {
+        if (!model.Items.Any())
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Warning,
+                Summary = "Validation Error",
+                Detail = "Please add at least one expense item",
+                Duration = 4000
+            });
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var result = await ExpenseService.CreateExpenseAsync(model);
+
+            if (result.Success && result.Data != null)
+            {
+                // If not saving as draft, submit the expense
+                if (!submitAsDraft)
+                {
+                    await ExpenseService.SubmitExpenseAsync(result.Data.Id);
+                }
+
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = submitAsDraft ? "Expense saved as draft" : "Expense submitted successfully",
+                    Duration = 4000
+                });
+
+                NavigationManager.NavigateTo("/expenses");
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = result.Message,
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
