@@ -24,6 +24,8 @@ namespace ExpenseMaqnagement.Identity.Domain.Entities
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
         public ICollection<UserClaim> UserClaims { get; set; } = new List<UserClaim>();
 
+
+
         public string FullName => $"{FirstName} {LastName}";
         public bool IsLockedOut => LockoutEnd.HasValue && LockoutEnd.Value > DateTime.UtcNow;
     }
