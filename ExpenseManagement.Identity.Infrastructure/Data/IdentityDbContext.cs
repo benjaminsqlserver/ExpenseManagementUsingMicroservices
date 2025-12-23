@@ -14,8 +14,11 @@ namespace ExpenseManagement.Identity.Infrastructure.Data
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
+      
         public DbSet<UserClaim> UserClaims { get; set; }
+
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -85,17 +88,31 @@ namespace ExpenseManagement.Identity.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // RefreshToken Configuration
             modelBuilder.Entity<RefreshToken>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.Token).IsUnique();
+
+                entity.Property(e => e.TokenHash)
+                      .HasMaxLength(512)
+                      .IsRequired();
+
+                // Unique index for lookup during refresh
+                entity.HasIndex(e => e.TokenHash)
+                      .IsUnique();
+
+                // Composite index for cleanup + per-user queries
+                entity.HasIndex(e => new { e.UserId, e.ExpiresAt });
+
+                entity.Property(e => e.ExpiresAt)
+                      .IsRequired();
 
                 entity.HasOne(rt => rt.User)
-                    .WithMany(u => u.RefreshTokens)
-                    .HasForeignKey(rt => rt.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                      .WithMany(u => u.RefreshTokens)
+                      .HasForeignKey(rt => rt.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
+
+
 
             // UserClaim Configuration
             modelBuilder.Entity<UserClaim>(entity =>

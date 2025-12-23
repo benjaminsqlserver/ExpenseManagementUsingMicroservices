@@ -1,9 +1,10 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
-using ExpenseManagement.Identity.Infrastructure.Data;
+﻿using ExpenseManagement.BuildingBlocks.Common.Models;
+using ExpenseManagement.Identity.Application.Common.Security;
 using ExpenseManagement.Identity.Application.DTOs;
 using ExpenseManagement.Identity.Application.Services;
-using ExpenseManagement.BuildingBlocks.Common.Models;
+using ExpenseManagement.Identity.Infrastructure.Data;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseManagement.Identity.Application.Commands;
 
@@ -63,14 +64,19 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, ApiResponse<Log
             .ToList();
 
         var (accessToken, expiresAt) = _jwtTokenGenerator.GenerateAccessToken(user, roles, permissions);
-        var refreshToken = _jwtTokenGenerator.GenerateRefreshToken();
+        // Generate raw refresh token (returned to client)
+        var refreshToken = RefreshTokenHelper.Generate();
 
-        var refreshTokenEntity = new ExpenseMaqnagement.Identity.Domain.Entities.RefreshToken
+        // Hash before storing
+        var refreshTokenHash = RefreshTokenHelper.Hash(refreshToken);
+
+        var refreshTokenEntity = new RefreshToken
         {
+            Id = Guid.NewGuid(),
             UserId = user.Id,
-            Token = refreshToken,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedByIp = "127.0.0.1" // Should come from HTTP context
+            TokenHash = refreshTokenHash,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 
         _context.RefreshTokens.Add(refreshTokenEntity);
